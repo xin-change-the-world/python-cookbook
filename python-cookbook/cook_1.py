@@ -11,7 +11,7 @@
 '''
 ###############################
 '''
-1.1每次处理一个字符
+1.1 每次处理一个字符
 '''
 thestring = "aabbcc"
 #可以调用内建的list
@@ -36,7 +36,7 @@ print ''.join(magic_chars)
 print ''.join(magic_chars & magic_chars2)#集合的交集
 #a
 '''
-1.2字符和字符值之间的转换
+1.2 字符和字符值之间的转换
 '''
 #将一个字符转化为相应的ASC（ISO）或者Unicode码，或者反其道而行之
 #这正是内建函数ord和chr擅长的任务
@@ -54,7 +54,7 @@ print map(ord, 'python')
 print ''.join(map(chr, range(97, 100)))
 #abc
 '''
-1.3测试一个对象是否是类字符串
+1.3 测试一个对象是否是类字符串
 '''
 def isAString(obj):
     return isinstance(obj, basestring)
@@ -70,12 +70,12 @@ def isStringLike(obj):
     else: return True
 #此函数比isAString函数要慢的多而且复杂，但是适用于UserString（以及其他的类字符串的类型）的实例，也适用于str和unicode
 '''
-1.4字符串对齐
+1.4 字符串对齐
 '''
 print '|','hej'.ljust(20),'|','hej'.rjust(20),'|','hej'.center(20),'|'
 print 'hej'.center(6, '+')
 '''
-1.5去除字符串两端的空格
+1.5 去除字符串两端的空格
 '''
 x = '   xin   '
 print '|',x.lstrip(),'|',x.rstrip(),'|',x.strip(),'|'
@@ -83,7 +83,7 @@ print '|',x.lstrip(),'|',x.rstrip(),'|',x.strip(),'|'
 x = 'xyxxyy xin yyxx'
 print '|',x.lstrip('xy'),'|',x.rstrip('xy'),'|',x.strip('xy'),'|'
 '''
-1.6合并字符串
+1.6 合并字符串
 '''
 #将一个字符串列表合并成一个字符串
 pieces = ['a','b','c']
@@ -103,7 +103,7 @@ largeString = reduce(operator.add, pieces, '')
 #python中字符串对象是不可改变的，任何对字符串的操作，包括字符串的拼接都将产生一个新的字符串对象
 #而不是修改原有的对象。因此拼接N个字符串将涉及创建并丢弃N-1个中间结果
 '''
-1.7将字符串逐字符或逐词反转
+1.7 将字符串逐字符或逐词反转
 '''
 #字符串无法改变，所以，反转一个字符串需要创建一个拷贝。最简单的方法是使用一种步长为-1的切片方法
 astring = 'abcdefg'
@@ -127,7 +127,7 @@ revwords = ' '.join(revwords)
 #或者
 revwords = ' '.join(re.split(r'(\s+)', astring)[::-1])
 '''
-1.8检查字符串中是否包含某字符集合中的字符
+1.8 检查字符串中是否包含某字符集合中的字符
 '''
 def containsAny(seq, aset):
     """检查序列seq是否含有aset中的项"""
@@ -142,7 +142,7 @@ def containsAny1(seq, aset):
     return False
 
 '''
-1.9简化字符串的translate方法的使用
+1.9 简化字符串的translate方法的使用
 '''
 import string
 def translator(frm = '', to = '', delete = '', keep = None):
@@ -159,7 +159,7 @@ def translator(frm = '', to = '', delete = '', keep = None):
 digits_only = translator(keep=string.digits)
 print digits_only('Chris Perkins : 224-7992')
 '''
-1.10过滤字符串中不属于指定集合的字符
+1.10 过滤字符串中不属于指定集合的字符
 '''
 import string
 #生成所有字符的可复用的字符串，它还可以作为一个翻译表，这里无需翻译
@@ -178,7 +178,7 @@ def makefilter(keep):
 just_vowels = makefilter('aeiouy')
 print just_vowels('four score and seven yesrs ago')
 '''
-1.11检查一个字符串是文本还是二进制
+1.11 检查一个字符串是文本还是二进制
 '''
 #from _future_ import division  #确保/不会截断
 import string
@@ -197,7 +197,7 @@ def istext(s, text_characters = text_characters, threshold = 0.30):
     return len(t)/len(s) <= threshold
 
 '''
-1.12控制大小写
+1.12 控制大小写
 '''
 #将一个字符串由大写转成小写，或者反其道而行之
 #upper和lower方法，不需要参数，直接返回一个字符串的拷贝
@@ -226,10 +226,10 @@ def iscapitalized1(s):
     return s == s.capitalize() and containsAny1(s, string.letters)
 '''
 '''
-1.13访问子字符串
+1.13 访问子字符串
 '''
 '''
-1.14改变多行文本字符串的缩进
+1.14 改变多行文本字符串的缩进
 '''
 def reindent(s, numSpaces):
     leading_space = numSpaces * ' '
@@ -240,7 +240,7 @@ x = """line one
         line three"""
 print reindent(x, 4)
 '''
-1.15扩展和压缩制表符
+1.15 扩展和压缩制表符
 '''
 #将字符串中的制表符转化成一定数目的空格，或者反其道而行之
 mystring = "    ddd"
@@ -262,4 +262,123 @@ def unexpand(astring, tablen=8):
             numblanks = lensofar % tablen
             numtabs = (thislen - numblanks + tablen - 1)/tablen
             pieces[i] = '\t' * numtabs + ' '*numblanks
-return ''.join(pieces)
+#return ''.join(pieces)
+'''
+1.16 替换字符串中的子串
+'''
+def expand(format, d, marker='"', safe=False):
+    if safe:
+        def lookup(w): return d.get(w, w.join(marker*2))
+    else:
+        def lookup(w): return d[w]
+    parts = format.split(marker)
+    parts[1::2] = map(lookup, parts[1::2])
+    return ''.join(parts)
+print expand('just "a" test', {'a':'one'})
+'''
+1.17 替换字符串中的子串——Python2.4
+'''
+#Python2.4提供了一个新的string.Template类，可以应用于这个任务
+import string
+#从字符串生成模板，其中标识符被$标记
+new_style = string.Template('this is $thing')
+#给模板的substitute方法传入一个字典参数并调用之
+print new_style.substitute({'thing':5})#输出this is 5
+print new_style.substitute({'thing':'test'})
+print new_style.substitute(thing=5)
+print new_style.substitute(thing='test')
+#this is 5
+#this is test
+#this is 5
+#this is test
+'''
+1.18 一次完成多个替换
+'''
+#re.escape(string)
+#对字符串中的非字母数字进行转义
+import re
+def multiple_replace(text, adict):
+    rx = re.compile('|'.join(map(re.escape, adict)))
+    def one_xlat(match):
+        return adict[match.group(0)]
+    return rx.sub(one_xlat, text)
+'''
+1.19 检查字符串中的结束标记
+'''
+import itertools
+def anyTrue(predicate, sequence):
+    return True in itertools.imap(predicate, sequence)
+
+def endsWith(s, *endings):
+    return anyTrue(s.endswith, endings)
+#过滤图片
+import os
+for filename in os.listdir('.'):
+    if endsWith(filename, '.jpg', '.jpeg', '.gif'):
+        print filename
+        
+'''
+1.20 使用Unicode来处理国际化文本
+'''
+german_ae = unicode('\xc3\xa4', 'utf8')
+print german_ae
+'''
+1.21 在Unicode和普通字符串之间转换
+'''
+#需要处理一些可能不符合ASC字符集的文本数据
+unicodestring = u"Hello world"
+#将Unicode转化为普通Python字符串：“encode”
+utf8string = unicodestring.encode("utf-8")
+print utf8string
+asciistring = unicodestring.encode("ascii")
+print asciistring
+#将普通python字符串转化为Unicode：“decode”
+plainstring1 = unicode(utf8string, "utf-8")
+print plainstring1
+'''
+1.22 在标准输出中打印Unicode字符
+'''
+import codecs, sys
+sys.stdout = codecs.lookup('iso8859-1')[-1](sys.stdout)
+'''
+1.23 对Unicode数据编码并用于XML和HTML
+'''
+def encode_for_xml(unicode_data, encoding='ascii'):
+    return unicode_data.encode(encoding, 'xmlcharrefreplace')
+'''
+1.24 让某些字符串大小写不敏感
+'''
+#想让某些字符串在比较和查询的时候是大小写不敏感的，但在其他操作中却保持原状
+class iStr(str):
+    """
+    #大小写不敏感的字符串类
+    #行为方式类似于str，只是所有的比较和查询都是大小写不敏感的
+    """
+    def __init__(self, *args):
+        self._lowered = str.lower(self)
+    def __repr__(self):
+        return '%s(%s)' % (type(self).__name__,str.__repr__(self))
+    def __hash__(self):
+        return hash(self._lowered)
+    def lower(self):
+        return self._lowered
+
+def _make_case_insensitive(name):
+    """将str的方法封装成iStr的方法，大小写不敏感"""
+    str_meth = getattr(str, name)
+    def x(self, other, *args):
+        """
+        #先尝试将other小写化，通常这应该是一个字符串
+        #但必须要做好准备应对这个过程中出现的错误
+        #因为字符串是可以和非字符串正确的比较的
+        """
+        try: other = other.lower()
+        except (TypeError, AttributeError, ValueError): pass
+        return str_meth(self._lowered, other, *args)
+    setattr(iStr, name, x)
+#将_make_case_insensitive函数应用于指定的方法
+for name in 'eq lt le gt gt ne cmp contains'.split():
+    _make_case_insensitive('__%s__' % name)
+for name in 'count endswith find index rfind rindex startswith'.split():
+    _make_case_insensitive(name)
+del _make_case_insensitive
