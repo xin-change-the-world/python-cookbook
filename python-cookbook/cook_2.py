@@ -434,3 +434,25 @@ thefiles = list(all_files('D:\go-project\python-cookbook', '*.py;*.pyc'))
 2.17 在目录树中改变文件扩展名
 '''
 #需要在一个目录的子树中重命名一系列文件，具体的说，你想将某一指定类型的文件的扩展名改成另一种扩展名
+#用Python标准库提供的os.walk函数来处理子目录中的所有文件，任务变得非常容易
+import os
+def swapextensions(dir, before, after):
+    if before[:1] != '.':
+        before = '.' + before
+    thelen = -len(before)
+    if after[:1] != '.':
+        after = '.' + after
+    for path, subdirs, files in os.walk(dir):
+        for oldfile in files:
+            if oldfile[thelen:] == before:
+                oldfile = os.path.join(path, oldfile)
+                newfile = oldfile[:thelen] + after
+                os.rename(oldfile, newfile)
+'''
+if __name__=='__main__':
+    import sys
+    if len(sys.argv) != 4:
+        print "Usage: swapext rootdir before after"
+        sys.exit(100)
+    swapextensions(sys.argv[1], sys.argv[2], sys.argv[3])
+'''
