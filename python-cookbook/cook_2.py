@@ -456,3 +456,238 @@ if __name__=='__main__':
         sys.exit(100)
     swapextensions(sys.argv[1], sys.argv[2], sys.argv[3])
 '''
+'''
+2.18 从指定的搜索路径寻找文件
+'''
+import os
+def search_file(filename, search_path, pathsep=os.pathsep):
+    """给定一个搜索路径，根据请求的名字找到文件"""
+    for path in search_path.split(pathsep):
+        candidate = os.path.join(path, filename)
+        if os.path.isfile(candidate):
+            return os.path.abspath(candidate)
+    return None
+'''
+if __name__=='__main__':
+    search_path = '/bin' + os.pathsep + '/usr/bin' #;on Windows, :on UNIX
+    file_file = search_file('ls', search_path)
+    if find_file:
+        print "File 'is' found at %s" % find_file
+    else:
+        print "File 'ls' not found"
+'''
+'''
+2.19 根据指定的搜索路径和模式寻找文件
+'''
+#基本上需要循环路径中所有的目录。这个循环最好被封装成一个生成器
+import glob, os
+def all_files(pattern, search_path, pathsep=os.pathsep):
+    """给定搜索路径，找出所有满足匹配条件的文件"""
+    for path in search_path.split(pathsep):
+        for match in glob.glob(os.path.join(path, pattern)):
+            yield match
+print all_files('*.pye', os.environ['PATH']).next()
+
+for match in all_files('*.pye', os.enveiron['PATH']):
+    print match
+
+print list(all_files('*.pye', os.environ['PATH']))
+
+'''
+2.20 在Python的搜索路径中寻找文件
+'''
+#任务：一个大的Python应用程序包括了资源文件（比如Glade项目文件、SQL模板）
+#和图片以及Python包。你想把所有这些相关文件和用到他们的Python包储存起来
+#可以再Python的sys.path中寻找文件或目录
+import sys, os
+class Error(Exception):pass
+def _find(pathname, matchFunc=os.path.isfile):
+    for dirname in sys.path:
+        candidate = os.path.join(dirname, pathname)
+        if matchFunc(candidate):
+            return candidate
+    raise Error("Can't find file %s" % pathname)
+def findFile(pathname):
+    return _find(pathname)
+def findDir(path):
+    return _find(path, matchFunc=os.path.isdir)
+
+'''
+2.21 动态地改变Python搜索路径
+'''
+#模块必须处于Python搜索路径中才能被导入，但你不想设置个永久性的大路径，因为那样可能会影响性能
+#所以，你希望能够动态地改变这个路径
+#只需要简单地在Python的sys.path中加入一个“目录”。不过要小心重复的情况
+def AddSysPath(new_path):
+    """AddSysPath(new_path)：给Python的sys.path增加一个目录
+        如果此目录不存在或者已经在sys.path中了，则不操作
+        返回1表示成功，-1表示new_path不存在，0表示已经在sys.path中了
+    """
+    import sys, os
+    #避免加入一个不存在的目录
+    if not os.path.exists(new_path): return -1
+    #将路径标准化，Windows是大小写不敏感的，所以若确定在Windows下，将其转成小写
+    new_path = os.path.abspath(new_path)
+    if sys.platform == 'win32':
+        new_path = new_path.lower()
+    #检查当前所有的路径
+    for x in sys.path:
+        x = os.path.abspath(x)
+        if sys.platform == 'win32'
+            x = x.lower()
+        if new_path in (x, x + os.sep):
+            return 0
+    sys.path.append(new_path)
+    #如果想让new_path在sys.path处于最前
+    #使用：sys.path.insert(0, new_path)
+    return 1
+'''
+if __name__=='__main__':
+    #测试，显示用法
+    import sys
+    print 'Before':
+    for x in sys.path: print x
+    if sys.platform == 'win32':
+        print AddSysPath('c:\\Temp')
+        print AddSysPath('c:\\temp')
+    else:
+        print AddSysPath('/usr/lib/my_modules')
+    print 'After':
+    for x in sys.path: print x
+'''
+
+'''
+2.22 计算目录间的相对路径
+'''
+#需要知道一个目录对另一个目录的相对路径是什么——比如，有时候需要创建一个符号链接
+#或者一个相对的URL引用
+#最简单的方法就是把目录拆分到一个目录的列表中，然后对列表进行处理。
+import os, itertools
+def all_equal(elements):
+    '''若所有元素都相等，则返回True，否则返回False'''
+    first_element = elements[0]
+    for other_element in elements[1:]:
+        if other_element != first_element: return False
+def common_prefix(*sequences):
+    '''
+    返回所有序列开头部分功能元素的列表
+    紧接一个各序列的不同尾部的列表
+    '''
+    #如果没有sequence，完成
+    if not sequences: return [],[]
+    #并行地循环序列
+    common = []
+    for elements in itertools.izip(*sequences):
+        #若所有元素相等，跳出循环
+        if not all_equal(elements): break
+        #得到一个共同的元素，添加到末尾并继续
+        common.append(elements[0])
+    #返回相同的头部和各自不同的尾部
+    return common, [sequence[len(common):] for sequence in sequences]
+def relpath(p1, p2, sep=os.path.sep, pardir=os.path.pardir):
+    '''
+    返回p1对p2的相对路径
+    特殊情况：空串，if p1 == p2；p2 如果p2和p1完全没有相同的元素
+    '''
+    common, (u1, u2) = common_prefix(p1.split(sep), p2.split(sep))
+    if not common:
+        return p2 #如果完全没有共同元素，则路径是绝对路径
+    return sep.join( [pardir]*len(u1) + u2 )
+def test(p1, p2, sep=os.path.sep):
+    '''调用relpath函数，打印调用参数和结果'''
+    print "from",p1,"to",p2,"->", relpath(p1, p2, sep)
+'''
+if __name__=='__main__':
+    test('/a/b/c/d','/a/b/c1/d1', '/')
+    test('/a/b/c/d','/a/b/c/d', '/')
+    test('c:/x/y/z','d:/x/y/z', '/')
+'''
+'''
+2.23 跨平台地读取无缓存的字符
+'''
+#任务：你的程序需要从标准输出中，读取无缓存的单个的字符，兼容Windows和类UNIX
+try:
+    from msvcrt import getch
+except ImportError:
+    '''我们不在Windows中，所以可以尝试类UNIX的方式'''
+    def getch():
+        import sys, tty, termios
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            ch = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        return ch
+'''
+2.24 在Mac OS X平台上统计PDF文档的页数
+'''
+#!/usr/bin python
+import CoreGraphics
+def pageCount(pdfPath):
+    '''返回指定路径的PDF文档的页数'''
+    pdf = CoreGraphics.CGPDFDocumentCreateWithProvider(
+            CoreGraphics.CGDataProviderCreateWithFilename(pdfPath)
+        )
+    return pdf.getNumberOfPages()
+
+'''
+2.25 在Windows平台上修改文件属性
+'''
+import win32con, win32api, os
+#创建一个文件并展示如何操纵它
+thefile = 'test'
+f = open('test', 'w')
+f.close()
+#设置成隐藏文件
+win32api.SetFileAttributes(thefile, win32con.FILE_ATTRIBUTE_HIDDEN)
+#设置成只读文件
+win32api.SetFileAttributes(thefile, win32con.FILE_ATTRIBUTE_READONLY)
+#为了删除它先把他设置成普通文件
+win32api.SetFileAttributes(thefile, win32con.FILE_ATTRIBUTE_NORMAL)
+#最后删除该文件
+os.remove(thefile)
+
+'''
+2.26 从OpenOffice.org文档中提取文本
+'''
+#OpenOffice.org文档其实就是一个聚合了XML文件的zip文件，遵循一种良好的文档规范。
+#如果只是为了访问其中的数据，我们甚至不用安装OpenOffice.org
+import zipfile, re
+rx_stripxml = re.compile("<[^>]*?>", re.DOTALL|re.MULTILINE)
+def convert_OO(filename, want_text=True):
+    """将一个OpenOffice.org文件转换成XML或文本"""
+    zf = zipfile.ZipFile(filename, "r")
+    data = zf.read("content.xml")
+    zf.close()
+    if want_text:
+        data = "".join(rx_stripxml.sub("",data).split())
+    return data
+'''
+2.27 从微软Word文档中抽取文本
+'''
+import fnmatch, os, sys, win32com.client
+wordapp = win32com.client.gencache.EnsureDispatch("Word.Application")
+try:
+    for path, dirs, files in os.walk(sys.argv[1]):
+        for filename in files:
+            if not fnmatch.fnmatch(filename, '*.doc'): continue
+            doc = os.path.abspath(os.path.join(path, filename))
+            print "processing %s" % doc
+            wordapp.Document.Open(doc)
+            docastxt = doc[:-3] + 'txt'
+            wordapp.ActiveDocument.SaveAd(docastxt, FileFormat=win32com.client.constants.wdFormatText)
+            wordapp.ActiveDocument.Close()
+finally:
+    #确保即使有异常发生Word仍能被正常关闭
+    wordapp.Quit()
+'''
+2.28 使用跨平台的文件锁
+'''
+'''
+2.29 带版本号的文件名
+'''
+'''
+2.30 计算CRC-64循环冗余码校验
+'''
