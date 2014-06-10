@@ -27,3 +27,9 @@ b = a
 b.append(5)
 print a
 print b
+#copy.copy：浅拷贝，对象内部属性和内容依然引用原对象，快而且节省内存
+list_of_lists = [ ['a'], [1, 2], ['z', 23] ]
+copy_lol = copy.copy(list_of_lists)
+copy_lol[1].append('boo')
+print list_of_lists, copy_lol
+#copy.deepcopy：递归的拷贝内部引用的对象（所有的元素，属性，元素的元素，元素的属性），消耗相当的时间和内存
