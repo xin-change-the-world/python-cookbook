@@ -160,3 +160,160 @@ import itertools
 d = dict(itertools.izip(the_keys, the_values))
 长度为10000的序列，第二种方式快两倍左右
 '''
+
+'''
+4.12 将列表元素交替地作为键和值来创建字典
+'''
+#给定一个列表，需要交替的使用列表中的元素作为键和对应值来创建一个字典
+def dictFromList(keysAndValues):
+	return dict(zip(keysAndValues[::2], keysAndValues[1::2]))
+#方法2，把从给定序列中获取多个数对的过程独立出来，变成一个单独的生成器
+def pairwise(iterable):
+	itnext = iter(iterable).next
+	while True:
+		yield itnext(), itnext()
+def dictFromSequence(seq):
+	return dict(pairwise(seq))
+
+'''
+4.13 获取字典的一个子集
+'''
+#你有一个巨大的字典，字典中的一些键属于一个特定的集合，而你想创建一个包含这个键集合及其对应值的新字典
+#如果你不想改动原字典
+def sub_dict(somedict, somekeys, default=None):
+	return dict([ (k, somedict.get(k, default)) for k in somekeys ])
+#如果你从原字典删除那些符合条件的条目：
+def sub_dict_remove(somedict, somekeys, default=None):
+	return dict( [ (k, somedict.pop(k, default)) for k in somekeys ] )
+
+d = {'a':5, 'b':6, 'c':7}
+print sub_dict(d, 'ab'), d
+print sub_dict_remove(d, 'ab'), d
+#键不匹配时，得到异常提醒
+def sub_dict_strict(somedict, somekeys):
+    return dict([ (k, somedict[k]) for k in somekeys ])
+def sub_dict_remove_strict(somedict, somekeys):
+    return dict([ (k, somedict.pop(k)) for k in somekeys ])
+#键不匹配时，直接忽略
+def sub_dict_select(somedict, somekeys):
+    return dict([ (k, somedict[k]) for k in somekeys if k in somedict ])
+def sub_dict_remove_select(somedict, somekeys):
+    return dict([ (k, somedict.pop(k)) for k in somekeys if k in somedict ])
+
+
+'''
+4.14 反转字典
+'''
+#给定一个字典，此字典将不同的键映射到不同的值。而你想创建一个反转的字典，将各个值反映射到键
+def invert_dict(d):
+	return dict([ (v, k) for k, v in d.iteritems() ])
+#对于比较大的字典，用Python标准库itertools模块提供的izip会更快一些
+from itertools import izip
+def invert_dict_fast(d):
+	return dict(izip(d.itervalues(), d.iterkeys()))
+
+'''
+4.15 字典的一键多值
+'''
+#需要一个字典，能够将每个键映射到多个值上
+#正常情况下，字典是一对一映射的，但要实现一对多映射也不难，换句话说，即一个键对应多个值。
+#你有两个可选方案，但具体要看你怎么看待键的多个对应值的重复。下面这种方法，使用list作为dict的值，允许重复
+'''
+d1 = {}
+d1.setdefault(key, []).append(value)
+#另一种方案，使用子字典作为dict的值，自然而然地消灭了值重复的可能
+d2 = {}
+d2.setdefault(key, {})[value] = 1
+#在python2.4中，这种无重复值的方法可等价地被修改为：
+d3 = {}
+d3.setdefault(key, set()).add(value)
+'''
+
+'''
+4.16 用字典分派方法和函数
+'''
+#需要根据某个控制变量的值执行不同的代码片段——在其他的语言中你可能会使用case语句
+#归功于面向对象编程的优雅的分派概念，case语句的使用大多（但不是所有）都可以被替换成其他分派形式。在python中
+#字典及函数都是一等（first－class）对象这个事实（比如函数可以作为字典中的值被存储）
+#使得case语句的问题更容易被解决
+print "===================="
+animals = []
+number_of_felines = 0
+def deal_with_a_cat():
+	global number_of_felines
+	print "meow"
+	animals.append('feline')
+	number_of_felines += 1
+def deal_with_a_dog():
+	print "bark"
+	animals.append('canine')
+def deal_with_a_bear():
+	print "watch out for the *HUG*"
+	animals.append('ursine')
+tokenDict = {
+	"cat": deal_with_a_cat,
+	"dog": deal_with_a_dog,
+	"bear": deal_with_a_bear,
+}
+#模拟，比如，从文件中读取的一些单词
+words = {"cat", "bear", "cat", "dog"}
+for word in words:
+	#查找每个单词对应的函数调用并调用之
+	tokenDict[word]()
+nf = number_of_felines
+print 'we met %d feline%s' % (nf, 's'[nf==1:])
+print 'the animals we met were:', ' '.join(animals)
+
+'''
+4.17 字典的并集与交集
+'''
+#在这个要求中，只需要考虑键，不需要考虑键的对应值，一般可以通过调用dict.fromkeys来创建字典
+a = dict.fromkeys(xrange(1000))
+b = dict.fromkeys(xrange(500, 1500))
+#最快计算出并集的方法是：
+union = dict(a, **b)
+#最快且最简洁地获得交集的方法是：
+inter = dict.fromkeys([x for x in a if x in b])
+
+#如果字典a和b的条目差异很大，那么在for字句中用较短的那个字典，在if子句中用较长的字典会有利于提升运算速度
+if len(a) < len(b):
+	inter = dict.fromkeys([x for x in a if x not in b])
+else:
+	inter = dict.fromkeys([x for x in b if x not in a ])
+
+#python也提供了直接代表集合的类型set模块，2.3和2.4都可以使用下面的代码
+try:
+	set
+except NameError:
+	from sets import Set as set
+
+#这样做的好处是，可以到处使用set类型，同时还获得了清晰和简洁，以及速度的提升，在python2.4中：
+a = set(xrange(1000))
+b = set(xrange(500, 1500))
+union = a | b #a.union(b)
+inter = a & b #a.intersection(b)
+
+#即使由于某些原因使用了dict，也应当尽可能地用set来完成集合操作。举个例子，假设你有个字典phones，将人名映射到电话号码，还有个字典address，将人名映射到地址。
+#最清楚简单地打印所有同时知道地址和电话号码的人名及其相关数据的方式：
+for name in set(phones) & set(addresses):
+	print name, phones[name], addresses[name]
+#跟下面的方法比，这非常简洁，虽然清晰度可能还有争议
+for name in phones:
+	if name in address:
+		print name, phones[name], address[name]
+#另一个很好的可选方法是：
+for name in set(phones).intersection(addresses):
+	print name, phones[name], address[name]
+
+'''
+4.18 搜集命名的子项
+'''
+#你想搜集一系列的子项，并命名这些子项，而且你认为用字典来实现有点不便。
+#任意一个类的实例都继承了一个被封装到内部的字典，它用这个字典来记录自己的状态。
+class Bunch(object):
+	def __init__(self, **kwds):
+		self.__dict__.update(kwds)
+point = Bunch(datum=y, squared=y*y, coord=x)
+#现在就可以访问并重新绑定那些刚被创建的命名属性了，也可以进行添加，移除某些属性之类的操作
+if point.squared > threshold:
+	point.isok = True
