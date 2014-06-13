@@ -40,7 +40,7 @@
 1.1 每次处理一个字符
 '''
 thestring = "aabbcc"
-#可以调用内建的list
+#可以调用内建的list.
 thelist = list(thestring)
 print thelist
 #['a', 'a', 'b', 'b', 'c', 'c']
