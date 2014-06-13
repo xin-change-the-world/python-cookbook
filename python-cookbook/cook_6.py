@@ -31,3 +31,117 @@
 6.19　调用超类的_ _init_ _方法 267
 6.20　精确和安全地使用协作的超类调用 270
 """
+'''
+#在python中最好的方式是使用模块，而不是一个OOP对象
+'''
+'''
+6.1 温标的转换
+'''
+#你想在开式温度（Kelvin）、摄氏度（Celsius）、华氏温度（Fahrenheit）以及兰金（Rankine）温度之间做转换
+class Temperature(object):
+    coefficients = {'c':(1.0, 0.0, -273.15), 
+                    'f':(1.8, -273.15, 32.0), 
+                    'r':(1.8, 0.0, 0.0)}
+    def __init__(self, **kwargs):
+        #默认是绝对（开式）温度0，但可接受一个命名的参数
+        #名字可以是k、c、f或r，分别对应不同的温标
+        try:
+            name, value = kwargs.popitem()
+        except KeyError:
+            #无参数 默认k=0
+            name, value = 'k', 0
+        #若参数过多或参数不能识别，报错
+        if kwargs or name not in 'kcfr':
+            kwargs[name] = value #将其置回，做诊断用
+            raise TypeError, 'invalid arguments %r' % kwargs
+        setattr(self, name, float(value))
+    def __getattr__(self, name):
+        #将c、f、r的获取映射到k的计算
+        try:
+            eq = self.coefficients[name]
+        except KeyError:
+            #未知名字，提示错误
+            raise AttributeError, name
+    def __setattr__(self, name, value):
+        #将对k，c，f，r的设置映射到对k的设置；并禁止其他的选项
+        if name in self.coefficients:
+            #名字是c、f或r——计算并设置k
+            eq = self.coefficients[name]
+            self.k = (value - eq[2]) / eq[0] - eq[1]
+        elif name == 'k':
+            #名字是k，设置之
+            object.__setattr__(self, name, value)
+        else:
+            #未知名，给出错误信息
+            raise AttributeError, name
+    def __str__(self):
+        #以易读和简洁的格式打印
+        return "%s K" % self.k
+    def __repr__(self):
+        #以详细和准确的格式打印
+        return "Temperature(k=%r)" % self.k
+
+#假设你将以上代码存为te.py，并置入你的Python的sys.path就可以将它作为模块引入
+#from te import Temperature
+t = Temperature(f=70)
+#print dir(t)
+#print t.c
+'''
+6.2 定义常量
+'''
+#你需要定义一些模块级别的变量（比如命名的常量），而且客户代码无法将其重新绑定
+#你可以把任何对象当做模块一样安装。将下列代码存为一个模块const.py，并放入你的Python的sys.path指定的目录中
+
+class _const(object):
+	class ConstError(TypeError): pass
+	def __setattr__(self, name, value):
+		if name in self.__dict__:
+			raise self.ConstError, "Can't rebind const(%s)" % name
+		self.__dict__[name] = value
+	def __delattr__(self, name):
+		if name in self.__dict__:
+			raise self.ConstError, "Can't unbind const(%s)" % name
+		raise NameError, name
+import sys
+sys.modules[__name__] = _const()
+
+
+''' 示例 '''
+import const
+
+#现在任何客户端代码都可以导入const，并将const模块的一个属性绑定一次，但仅能绑定一次
+const.magic = 23
+print const.magic
+#一旦某属性已经被绑定，程序无法将其重新绑定或者解除绑定：
+try:
+    const.magic = 88 #抛出const.ConstError
+    del const.magic  #抛出const.ConstError
+except:
+    print "ConstError"
+ 
+'''
+6.3 限制属性的设置
+'''
+#通常情况下，Python允许随意给类和类实例增加属性。但对于某些特定的类，你却希望这种自由受到限制。
+#特殊方法__setattr__会解读对属性的设置操作，它让你有机会限制新属性的添加。
+#一个优雅的实现方法是写一个类和一个简单的自定义元类，再加上一个封装函数，像下面这样：
+def no_new_attributes(wrapped_setattr):
+    """
+    #试图添加新属性时，报错，但允许已经存在的属性被随意设置
+    """
+    def __setattr__(self, name, value):
+        if hasattr(self, name):#非新属性，允许
+            wrapped_setattr(self, name, value)
+        else: #新属性，禁止
+            raise AttributeError("can't add attribute %r to %s" % (name, self))
+        return __setattr__
+
+class NoNewAttrs(object):
+    """
+    #NoNewAttrs的子类会拒绝新属性的添加，但允许已存在的属性被赋予新值
+    """
+    #向此类的实例添加新属性的操作被屏蔽
+    __setattr__ = no_new_attributes(object.__setattr__)
+    class __metaclass__(type):
+        """ 一个简单的自定义元类，禁止向类添加新属性 """
+        __setattr__ = no_new_attributes(type.__setattr__)
