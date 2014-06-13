@@ -107,6 +107,7 @@ sys.modules[__name__] = _const()
 
 
 ''' 示例 '''
+'''
 import const
 
 #现在任何客户端代码都可以导入const，并将const模块的一个属性绑定一次，但仅能绑定一次
@@ -118,7 +119,7 @@ try:
     del const.magic  #抛出const.ConstError
 except:
     print "ConstError"
- 
+'''
 '''
 6.3 限制属性的设置
 '''
@@ -134,7 +135,7 @@ def no_new_attributes(wrapped_setattr):
             wrapped_setattr(self, name, value)
         else: #新属性，禁止
             raise AttributeError("can't add attribute %r to %s" % (name, self))
-        return __setattr__
+    return __setattr__
 
 class NoNewAttrs(object):
     """
@@ -145,3 +146,111 @@ class NoNewAttrs(object):
     class __metaclass__(type):
         """ 一个简单的自定义元类，禁止向类添加新属性 """
         __setattr__ = no_new_attributes(type.__setattr__)
+
+class Person(NoNewAttrs):
+    firstname = ''
+    lastname = ''
+    def __init__(self, firstname, lastname):
+        self.firstname = firstname
+        self.lastname = lastname
+    def __repr__(self):
+        return 'Person(%r, %r)' % (self.firstname, self.lastname)
+me = Person("Michere", "Simionato")
+print me
+me.firstname = "Michele"
+print me
+try:
+    Person.address = ''
+except AttributeError, err:
+    print "raised %r as expected " % err
+
+try:
+    me.address = ''
+except AttributeError, err:
+    print "raised %r as expected " % err
+
+'''
+6.4 链式字典查询
+'''
+＃需要实现的是一个映射，在内部这个映射可以将任务按顺序委托给其他映射。
+class Chainmap(object):
+    def __init__(self, *mappings):
+        # 记录映射的序列
+        self._mappings = mappings
+    def __getitem__(self, key):
+        # 在序列的字典中查询
+        for mapping in self._mappings:
+            try:
+                return mapping[key]
+            except KeyError:
+                pass
+        # 没有在任何字典中找到key，所以抛出KeyError异常
+        raise KeyError, key
+    def get(self, key, default=None):
+        # 若self[key]存在则返回之，否则返回default
+        try:
+            return self[key]
+        except KeyError:
+            return default
+    def __contains__(self, key):
+        # 若key在self中返回True,否则返回False
+        try:
+            self[key]
+            return True
+        except KeyError:
+            return False
+
+# 举个栗子，你现在就可以实现Python中用来查询名字的机制：先在局部变量中查找，然后（如果没有找到）再到全局变量中查找，
+# 最后（如果还没有找到）到内置量中查找：
+import __builtin__
+pylookup = Chainmap(locals(), globals(), vars(__builtin__))
+
+# 即使只读是我们设计上的选择，它也不是一个“完全的映射”。你可以通过继承DictMixin类
+# 在标准库的UserDict模块中，并提供少量的关键方法（DictMixin实现了其他的方法）
+# 将一个部分映射改变成“完全映射”。
+import UserDict
+from sets import Set
+class FullChainmap(Chainmap, UserDict.DictMixin):
+    def copy(self):
+        return self.__class__(self._mappings)
+    def __iter__(self):
+        seen = Set()
+        for mapping in self._mappings:
+            for key in mapping:
+                if key not in seen:
+                    yield key
+                    seen.add(key)
+    iterkeys = __iter__
+    def keys(self):
+        return list(self)
+
+# 除了Chainmap的对映射的要求，FullChainmap类又对封装的映射增加了一项要求：
+# 映射必须是可迭代的。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
