@@ -4,7 +4,7 @@
 #
 #
 # python cookbook 第一章 文本
-# Auther：张广欣
+# Writer：张广欣
 # Date：2014-06-04
 #
 #

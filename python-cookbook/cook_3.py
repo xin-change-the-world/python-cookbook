@@ -4,7 +4,7 @@
 #
 #
 # python cookbook 第三章 时间和财务计算
-# Auther：张广欣
+# Writer：张广欣
 # Date：2014-06-10
 #
 #

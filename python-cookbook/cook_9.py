@@ -4,7 +4,7 @@
 #
 #
 # python cookbook 第九章 进程、线程和同步
-# Auther：张广欣
+# Writer：张广欣
 # Date：2014-06-12
 #
 #
@@ -413,3 +413,271 @@ def get_thread_storage():
     return _tss.__dict__
 
 print get_thread_storage()
+
+'''
+9.8 无线程的多任务协作
+'''
+#你有个任务看上去很适合采用多线程技术，但是你不想忍受由于线程切换而造成的开销
+#生成器被设计来简化迭代，但它却很适合被当做多任务协作的基础，这种方式也称为微线程
+import signal
+#一些微线程生成器的示例
+def empty(name):
+    """ 这是一个出于展示目的的空任务 """
+    while True:
+        print "<empty process>", name
+        yield None
+def terminating(name, maxn):
+    """ 这是一个出于展示目的的计数任务 """
+    for i in xrange(maxn):
+        print "Here %s, %s out of %s" % (name, i, maxn)
+        yield None
+    print "Done with %s, bailing out after %s times" % (name, maxn)
+def delay(duration=0.8):
+    """ 在duration秒时间内什么也不做 """
+    import time
+    while True:
+        print "<sleep %d>" % duration
+        time.sleep(duration)
+        yield None
+class GenericScheduler(object):
+    def __init__(self, threads, stop_asap=False):
+        signal.signal(signal.SIGINT, self.shutdownHandler)
+        self.shutdownRequest = False
+        self.threads = threads
+        self.stop_asap = stop_asap
+    def shutdownHandler(self, n, frame):
+        """ 初始化一个关闭的请求 SIGINT """
+        print "Request to shut down."
+        self.shutdownRequest = True
+    def schedule(self):
+        def noop():
+            while True: yield None
+        n = len(self.threads)
+        while True:
+            for i, thread in enumerate(self.threads):
+                try: thread.next()
+                except StopIteration:
+                    if self.stop_asap: return
+                    n -= 1
+                    if n==0: return
+                    self.threads[i] = noop()
+                if self.shutdownRequest:
+                    return
+'''
+s = GenericScheduler([ empty('boo'), delay(), empty('foo'), terminating('file', 5), delay(0.5),], stop_asap = True)
+s.schedule()
+s = GenericScheduler([ empty('boo'), delay(), empty('foo'), terminating('file', 5), delay(0.5),], stop_asap = False)
+s.schedule()
+'''
+'''
+9.9 在Windwos中探测另一个脚本实例的运行
+'''
+#你想在Windows环境中确保你的脚本在任何时候都只有一个运行的实例
+from win32event import CreateMutex
+from win32api import GetLastError
+from winerror import ERROR_ALREADY_EXISTS
+from sys import exit
+handle = CreateMutex(None, 1, 'A unique mutex name')
+if GetLastError() == ERROR_ALREADY_EXISTS:
+    # 由于这是脚本的第二个实例，所以要采取适当的行动，比如
+    print 'Oh! dear, I exist already.'
+    exit(1)
+else:
+    # 这是脚本的第一个实例，让它做它应该做的工作即可
+    from time import sleep
+    for i in range(10):
+        print "I'm running ", i
+        sleep(1)
+
+'''
+9.10 使用MsgWaitForMultipleObjects处理Windows消息
+'''
+#在Win32程序中，需要处理消息，但你同时需要内核级别的可等待对象(waitable object)，并用它来协调一些活动
+#Windows应用程序的消息循环，也被称为消息泵，是Windows的心脏。
+import win32event
+import pythoncom
+TIMEOUT = 200 #ms
+StopEvent = win32event.CreateEvent(None, 0, 0, None)
+OtherEvent = win32event.CreateEvent(None, 0, 0, None)
+class myCoolApp(object):
+    def OnQuit(self):
+        #假设areYouSure是一个全局函数，通过消息对话框
+        #或其他漂亮的窗口来进行最后的检查
+        if areYouSure():
+            win32event.SetEvent(StopEvent) #退出消息泵
+
+def _MessagePump():
+    waitable = StopEvent, OtherEvent
+    while True:
+        rc = win32event.MsgWaitForMultipleObjects(
+            waitables,
+                      #Wait for all = false 所以现在它等待任意一个
+            TIMEOUT,   #或win32event.INFINITE
+            win32event.QS_ALLEVENTS) #接受各种事件
+        #可以在这里调用函数，如果它花的时间不长的话，至少每TIMEOUT毫秒
+        #它被执行一次——还可能更频繁
+        #具体取决于收到的Windows消息的数目
+        if rc == win32event.WAIT_OBJECT_0:
+            #所以我们第一个列表中的事件，StopEvent被激发所以我们必须退出，终止消息泵
+            break
+        elif rc == win32event.WAIT_OBJECT_0+1:
+            #我们的第二个列表中的事件，OhterEvent被设置
+            #做任何需要做的事情即可，可以根据需要
+            #等待任意多的内核对象（事件、锁、进程、线程、通知等等）
+            pass
+        elif rc == win32event.WAIT_OBJECT_0+len(waitables):
+            #一个Windows消息在等待——处理之（别问我为什么WAIT_OBJECT_MSG没被定义 < WAIT_OBJECT_0...!）
+            #这种消息服务是COM、DDE,以及其他Windows组件正常工作的重要保障
+            if pythoncom.PumpWaitingMessage():
+                break #收到了一个wm_quit消息
+        elif rc == win32event.WAIT_TIMEOUT:
+            #超时了
+            #我们在这里做点事
+            pass
+        else:
+            raise RuntimeError("unexpected win32wait return value") 
+
+'''
+9.11 用popen驱动外部进程
+'''   
+#你想驱动一个从标准输入接受命令的外部进程，但你并不关心这个外部进程在标准输出上给出的回应
+import os
+f = os.popen('gnuplot', 'w')
+print >>f, "set yrange[-300:+300]"
+for n in range(300):
+    print >>f, "plot %i*cos(x) + %i*log(x+10)" % (n, 150-n)
+    f.flush()
+f.close()
+
+'''
+9.12 获取UNIX Shell命令的输出流和错误流
+'''
+#需要在一个类UNIX的环境中运行一个外部进程并从这个外部进程中获取输出流以及错误流
+#popen2模块能够帮助你获取这两种流，但同时你还需要fcntl模块的帮助，使得这些流变成
+#非阻塞状态，从而避免死锁，还有一个要用到的模块是select，具体代码如下
+import os, popen2, fcntl, select
+def makeNonBlocking(fd):
+    fl = fcntl.fcntl(fd, fcntl.F_GETFL)
+    try:
+        fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NDELAY)
+    except AttributeError:
+        fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.FNDELAY)
+def getCommandOutput(command):
+    child = popen2.Popen3(command, 1) #获得命令的stdout和stderr
+    child.tochild.close() #不需要写入child的stdin
+    outfile = outfile.fromchild
+    outfd = outfile.fileno()
+    errfile = child.childerr
+    errfd = errfile.fileno()
+    makeNonBlocking(outfd) #不能死锁，使fd非阻塞
+    makeNonBlocking(errfd)
+    outdata, errdata = [], []
+    outof = erreof = False
+    while True:
+        to_check = [outfd] * (not noteof) + [errfd] * (not errof)
+        ready = select.select(to_check, [], []) #等待输入
+        if outfd in ready[0]:
+            outchunk = outfile.read()
+            if outchunk == '':
+                outeof = True
+            else:
+                outdata.append(outchunk)
+        if errfd in ready[0]:
+            errchunk = errfile.read()
+            if errchunk == '':
+                errof = True
+            else:
+                errdata.append(errchunk)
+        if outeof and erreof:
+            break
+        select.select([],[],[],.1) #给一点时间填充缓冲区
+
+    err = child.wait()
+    if err != 0:
+        raise RuntimeError, '%r failed with exit code %d\n%s' % (command, err, ''.join(errdata))
+    return ''.join(outdata)
+
+def getCommandOutput2(command):
+    child = os.popen(command)
+    data = child.read()
+    err = child.close()
+    if err:
+        raise RuntimeError, '%r failed with exit code %d ' % (command, err)
+
+'''
+9.13 在UNIX中fork一个守护进程
+'''
+#需要在UNIX或类UNIX系统中fork出一个守护进程，这个过程要求一系列精确的系统调用
+#UNIX守护进程必须同他们的控制终端和进程组分离。要做到这一点并不困难，但我们仍需小心从事，因此很有必要写一个daemonize.py模块来应对这种常见的需求：
+import sys, os
+'''
+将当前进程fork为一个守护进程
+如果你的守护进程是由inetd启动的，不要这样做！
+inetd完成了所有需要做的事，包括重定向标准文件描述符，需要做的事情也只有chdir()和umask()了
+'''
+def daemonize(stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
+    '''
+    #Fork当前进程为守护进程，重定向标准文件描述符
+    #默认情况下会定向到/dev/null
+    '''
+    #Perform first fork
+    try:
+        pid = os.fork()
+        if pid > 0:
+            sys.exit(0) #第一个父进程退出
+    except OSError, e:
+        sys.stderr.write("fork #1 failed:(%d) %s\n" % (e.errno, e.strerror))
+        sys.exit(1)
+    #从母环境分离
+    '''
+    os.umask(0)    #修改文件模式，让进程有最大权限，保证进程有读写执行权限，这个不是一个好的方法。
+    os.setsid()    #该方法做一系列的事：首先它使得该进程成为一个新会话的领导者，接下来它将进程转变一个新进程组的领导者
+                   #最后该进程不再控制终端, 运行的时候，建立一个进程，linux会分配个进程号。然后调用os.fork()创建子进程。若pid>0就是自己，自杀。子进程跳过if语句，通过os.setsid()成为linux中的独立于终端的进程（不响应sigint，sighup等）。
+    '''
+    os.chdir("/")
+    os.umask(0)
+    os.setsid()
+    #执行第二次fork
+    try:
+        pid = os.fork()
+        if pid > 0:
+            sys.exit(0) #第二个父进程退出
+    except OSError, e:
+        sys.stderr.write("fork #2 failed: (%d) %s\n" % (e.errno, e.strerror)) 
+        sys.exit(1)
+
+    #线程已经是守护进程了，重定向标准文件描述符
+    for f in sys.stdout, sys.stderr: f.flush()
+    si = file(stdin, 'r')
+    so = file(stdout, 'a+')
+    se = file(stderr, 'a+', 0)
+    os.dup2(si.fileno(), sys.stdin.fileno())
+    os.dup2(so.fileno(), sys.stdout.fileno())
+    os.dup2(se.fileno(), sys.stderr.fileno())
+def _example_main():
+    ''' 示例函数：每秒打印一个数字和时间戳 ''' 
+    import time
+    sys.stdout.write('Daemon started with pid %d \n' % os.getpid())
+    sys.stdout.write('Daemon stdout output\n')
+    sys.stderr.write('Daemon stderr output\n')
+    c = 0 
+    while True:
+        sys.stdout.write('%d: %s\n' % (c, time.ctime()))
+        sys.stdout.flush()
+        c = c + 1
+        time.sleep(1)
+daemonize('/dev/null', '/tmp/daemon.log', '/tmp/daemon.log')
+_example_main()
+'''
+要在UNIX平台中fork一个守护进程，我们必须执行一系列特定的系统调用，在W.RichardStevens
+的巨著Advanced Programming in the UNIX Environment(Addison-Wesley)中对此有详细的介绍。
+我们需要fork两次，结束每个父进程并让原始进程的孙进程运行守护进程的代码。
+这种做法能够将守护进程和调用终端分离开来，之后，守护进程就可以始终不受干扰地运行
+尤其是作为没有用户交互过程的服务进程，如web服务等，即使调用终端被关闭了。当你的脚本运行本模块
+的daemonize函数时，你唯一能注意到的视觉上的变化是，shell提示符很快就回来了
+总结一下：第一个fork是为了让shell返回，同时让你完成setsid（从你的控制终端移除，这样就不会意外地收到信号）
+setside使得这个进程成为了“会话领导(session leader)”，即如果这个进程打开任何终端，该终端
+就会成为此进程的控制终端。我们并不需要一个守护进程有任何控制终端，所以我们又fork一次。
+在第二次fork之后，此进程不再是一个“会话领导”，这样它就能打开任何文件（包括终端）
+且不会意外地再次获得一个控制终端
+'''

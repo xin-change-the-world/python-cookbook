@@ -4,7 +4,7 @@
 #
 #
 # python cookbook 第二章 文件
-# Auther：张广欣
+# Writer：张广欣
 # Date：2014-06-04
 #
 #
