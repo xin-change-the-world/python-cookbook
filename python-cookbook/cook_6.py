@@ -227,9 +227,38 @@ class FullChainmap(Chainmap, UserDict.DictMixin):
 # 除了Chainmap的对映射的要求，FullChainmap类又对封装的映射增加了一项要求：
 # 映射必须是可迭代的。
 
+'''
+6.5 继承的替代方案——自动托管
+'''
+# 你需要从某个类或者类型继承，但是需要对继承做一些调整。比如，需要选择性地隐藏某些基类的方法，而继承并不能做到这一点
+# 继承是很方便，但它不是万用良药。比如，它无法让你隐藏基类的方法或者属性。而自动托管技术则提供了一种很好的选择。假设需要把一些对象封装起来变成只读对象，从而避免意外修改的情况。
+# 那么，除了禁止属性设置的功能，还需要隐藏修改属性的方法。
+# 同时支持2.3和2.4
+try: set
+except NameError: from sets import Set as set
+class ROError(AttributeError): pass
+class Readonly: # 这里并没有用继承，我们会在后面讨论其原因
+    mutators = {
+        list: set('''__delitem__ __delslice__ __iadd__ __imul__
+                    __setitem__ __setslice__ append extend insert
+                    pop remove sort'''.split()),
+        dict: set('''__delitem__ __setitem__ clear pop popitem
+                    setdefault update'''.split()),
+        }
+    def __init__(self, o):
+        object.__setattr__(self, '_o', o)
+        object.__setattr__(self, '_no', self.mutators.get(type(o), ())
+    def __setattr__(self, n, v):
+        raise ROError, "Can't set attr %r on RO object" % n
+    def __delattr__(self, n):
+        raise ROError, "Can't del attr %r from RO object" % n
+    def __getattr__(self, n):
+        if n in self._no:
+            raise ROError, "Can't get attr %r from RO object" % n
+        return getattr(self._o, n)
 
-
-
+# 不使用继承的原因：这种基于 __getattr__ 的方式也可用于特殊方法，但仅对旧风格类的实例有效。
+# 在新的对象模型中，Python操作直接通过类的特殊方法来进行，而不是实例的。
 
 
 
