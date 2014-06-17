@@ -172,7 +172,7 @@ except AttributeError, err:
 '''
 6.4 链式字典查询
 '''
-＃需要实现的是一个映射，在内部这个映射可以将任务按顺序委托给其他映射。
+# 需要实现的是一个映射，在内部这个映射可以将任务按顺序委托给其他映射。
 class Chainmap(object):
     def __init__(self, *mappings):
         # 记录映射的序列
@@ -247,7 +247,7 @@ class Readonly: # 这里并没有用继承，我们会在后面讨论其原因
         }
     def __init__(self, o):
         object.__setattr__(self, '_o', o)
-        object.__setattr__(self, '_no', self.mutators.get(type(o), ())
+        object.__setattr__(self, '_no', self.mutators.get(type(o), ()))
     def __setattr__(self, n, v):
         raise ROError, "Can't set attr %r on RO object" % n
     def __delattr__(self, n):
@@ -260,26 +260,356 @@ class Readonly: # 这里并没有用继承，我们会在后面讨论其原因
 # 不使用继承的原因：这种基于 __getattr__ 的方式也可用于特殊方法，但仅对旧风格类的实例有效。
 # 在新的对象模型中，Python操作直接通过类的特殊方法来进行，而不是实例的。
 
+'''
+6.6 在代理中托管特殊方法
+'''
+print "----------------------------6.6在代理中托管特殊方法----------------------------"
+# 在新风格对象模型中，Python操作其实是在类中查找特殊方法的（而不是在实例中，那是经典对象模型的处理方式）
+# 现在，需要将一些新风格的实例包装到代理类中，此代理可以选择将一些特殊方法委托给内部的被包装对象
+# 你需要即时地生成各个代理类
+class Proxy(object):
+    """ 所有代理的基类 """
+    def __init__(self, obj):
+        #super(Proxy, self).__init__(obj)
+        super(Proxy, self).__init__()
+        self._obj = obj
+    def __getattr__(self, attrib):
+        return getattr(self._obj, attrib)
+def make_binder(unbound_method):
+    def f(self, *a, **k): return unbound_method(self._obj, *a, **k)
+    # 仅2.4：f.__name__ = unbound_method.__name__
+    return f
+known_proxy_classes = {}
+def proxy(obj, *specials):
+    ''' 能够委托特殊方法的代理的工厂函数 '''
+    # 我们手上有合适的自定义的类吗？
+    obj_cls = obj.__class__
+    key = obj_cls, specials
+    cls = known_proxy_classes.get(key)
+    if cls is None:
+        # 我们手上没有合适的类，那就现做一个
+        cls = type("%sProxy" % obj_cls.__name__, (Proxy,), {})
+        for name in specials:
+            name = '__%s__' % name
+            unbound_method = getattr(obj_cls, name)
+            setattr(cls, name, make_binder(unbound_method))
+        # 缓存之以供进一步使用
+        known_proxy_classes[key] = cls
+    # 实例化并返回需要的代理
+    return cls(obj)
+a = proxy([ ], 'len', 'iter') # 只托管len和iter
+print a
+print a.__class__
+print a._obj
+print a.append # 所有非特殊方法都被托管了
+print len(a)
+a.append(23)
+print len(a)
+# 由于__iter__被托管了，for循环也如同预期那样工作
+for x in a:
+    print x
+print list(a)
+print sum(a)
+print max(a)
+# 不过由于__getitem__没有被托管，a无法进行索引或切片操作：
+#print a.__getitem__
+#print a[1]
+'''
+  File "C:\Users\guangxin\Documents\GitHub\python-cookbook\python-cookbook\cook_6.py", line 316, in <module>
+    print a[1]
+TypeError: 'listProxy' object does not support indexing
+'''
+'''
+6.7 有命名子项的元组
+'''
+# Python元组可以很方便地被用来将信息分组，但是访问每个子项都需要使用数字索引，所以这种用法有点不便。
+# 你希望能够创建一种可以通过名字属性访问的元组
+# 工厂函数是生成符合要求的元组的子类的最简单方法：
+# 若在2.4中可以使用operator.itemgetter,若在2.3中则需要实现itemgetter
+'''
+operator.itemgetter函数
+operator模块提供的itemgetter函数用于获取对象的哪些维的数据，参数为一些序号（即需要获取的数据在对象中的序号），下面看例子。
+a = [1,2,3] 
+>>> b=operator.itemgetter(1)      //定义函数b，获取对象的第1个域的值
+>>> b(a) 
+2 
+>>> b=operator.itemgetter(1,0)   //定义函数b，获取对象的第1个域和第0个的值
+>>> b(a) 
+(2, 1) 
+要注意，operator.itemgetter函数获取的不是值，而是定义了一个函数，通过该函数作用到对象上才能获取值。
+'''
+try:
+    from operator import itemgetter
+except importError:
+    def itemgetter(i):
+        def getter(self): return self[i]
+        return getter
+def superTuple(typename, *attribute_names):
+    ''' 创建并返回拥有名字属性的元组子类 '''
+    # 给子类适合的__new__和__repr__特殊方法
+    nargs = len(attribute_names)
+    class supertup(tuple):
+        #python新模式的class，即从object继承下来的类有一个变量是__slots__，slots的作用是阻止在实例化类时为实例分配dict，默认情况下每个类都会有一个dict,通过__dict__访问，这个dict维护了这个实例的所有属性
+        __slots__ = ()     # 我们不需要每个实例提供一个字典，节省内存
+        def __new__(cls, *args):
+            if len(args) != nargs:
+                raise TypeError, '%s takes exactly %d arguments (%d given)' % (typename, nargs, len(args))
+            return tuple.__new__(cls, args)
+        def __repr__(self):
+            return '%s(%s)' % (typename, ', '.join(map(repr, self)))
+    # 给我们的元组子类添加一些键
+    for index, attr_name in enumerate(attribute_names):
+        setattr(supertup, attr_name, property(itemgetter(index)))
+    supertup.__name__ = typename
+    return supertup
 
+Point = superTuple('Point', 'x', 'y')
+print Point
+#p = Point(1, 2, 3) # 故意给错误的数字
+#print p
+p = Point(1, 2)
+print p
+print p.x, p.y
 
+'''
+6.8 避免属性读写的冗余代码
+'''
+# 你的类会用到property实例，而getter或者setter都是一些千篇一律的获取或者设置实例属性的代码。你希望只用指定属性名，而不用写那些非常相似的代码。
+# 需要一个工厂函数，用它来处理那些getter或setter的参数是字符串的情况，并将正确的参数封装到一个函数中，然后将其余的工作委托给Python内建的property
+def xproperty(fget, fset, fdel=None, doc=None):
+    if isinstance(fget, str):
+        attr_name = fget
+        def fget(obj): return getattr(obj, attr_name)
+    elif isinstance(fset, str):
+        attr_name = fset
+        def fset(obj, val): setattr(obj, attr_name, val)
+    else:
+        raise TypeError, 'either fget or fset must be a str'
+    return property(fget, fset, fdel, doc)
+# 当你需要一个setter和一个getter时，其中的一个需要执行一些额外的代码；而另一个则只需要简单地读取或者写入实例的属性。
+# 此时，property需要两个函数作为它的参数。其中的一个函数就是所谓的“样板代码”
+class Lower(object):
+    def __init__(self, s=''):
+        self.s = s
+    def _getS(self):
+        return self,_s
+    def _setS(self, s):
+        self._s = s.lower()
+    s = property(_getS, _setS)
+# _getS就是样板代码，但你仍需要编写这些代码，因为你要将它传递给property
+# 使用本节的方案，可以让你的代码变得更简洁，同时丝毫不改变愿意：
+class Lower(object):
+    def __init__(self, s=''):
+        self.s = s
+    def _setS(self, s):
+        self._s = s.lower()
+    s = xproperty('_s', _setS)
 
+'''
+6.9 快速复制对象
+'''
+# 为了使用copy.copy，需要实现特殊方法__copy__。而且你的类的__init__比较耗时，
+# 所以你希望能够绕过它并获得一个“空的”未初始化的类实例
+# 下面的解决方案可同时适用于新风格和经典类
+def empty_copy(obj):
+    class Empty(obj.__class__):
+        def __init__(self): pass
+    newcopy = Empty()
+    newcopy.__class__ = obj.__class__
+    return newcopy
+# 你的类可以使用这个函数来实现__copy__
+class YourClass(object):
+    def __init__(self):
+        print "assume there's a lot of work here"
+    def __copy__(self):
+        newcopy = empty_copy(self)
+        return newcopy
 
+y = YourClass()  # 很显然__init__会被调用
+print y
+z = copy.copy(y) # 不调用__init__
+print z
+# 下面两种复制所有属性的方式都是可行的：
+#newcopy.__dict__.update(self.__dict__)
+#newcopy.__dict__ = dict(self.__dict__)
 
+'''
+6.10 保留对被绑定方法的引用且支持垃圾回收
+'''
+print "================6.10 保留对被绑定方法的引用且支持垃圾回收=============="
+# 你想保存一些指向被绑定方法的引用，同时还需要让关联的对象可以被垃圾收集机制处理
+# 弱引用（弱引用在一个对象处于生存周期时指向该对象，但如果没有其他正常的引用指向该对象时，这个对象不会被保留）
+# Python标准库的weakref模块允许我们使用弱引用
+import weakref, new
+class ref(object):
+    """
+    # 能够封装任何可调用体，特别是被绑定方法，而且被绑定方法仍然能被回收处理。与此同时，提供一个普通的弱引用的接口
+    """
+    def __init__(self, fn):
+        try:
+            # 试图获得对象、函数和类
+            o, f, c = fn.im_self, fn.im_func, fn.im_class
+        except AttributeError:       # 非被绑定方法
+            self._obj = None
+            self._func = fn
+            self._clas = None 
+        else:                        # 绑定方法
+            if o is None: self._obj = None       # 实际上没绑定
+            else: self._obj = weakref.ref(o)         # 确实绑定了
+            self._func = f
+            self._clas = c
+    def __call__(self):
+        if self.obj is None: return self._func
+        elif self._obj() is None: return None 
+        return new.instancemethod(self._func, self.obj(), self._clas)
 
+# 一个正常的被绑定方法拥有一个指向此方法所属对象的强引用。
+# 这意味着除非这个被绑定方法被消灭掉，否则该对象不能被当做垃圾重新回收。
+class C(object):
+    def f(self):
+        print "Hello"
+    def __del__(self):
+        print "C dying"
 
+c = C()
+cf = c.f
+del c   # c眨巴眨巴眼睛活的好好的
+del cf  # 直到我们干掉了被绑定的方法，它才终于安心地去了
 
+'''
+6.11 缓存环的实现
+'''
+# 你想定义一个固定尺寸的缓存，当它被填满时，新加入的元素会覆盖第一个(最老的)元素。
+# 这种数据结构在存储日志和历史信息时非常有用
+class RingBuffer(object):
+    """ 这是一个未填满的缓存类 """
+    def __init__(self, size_max):
+        self.max = size_max
+        self.data = []
+    class __Full(object):
+        """ 这是一个填满了的缓存类 """
+        def append(self, x):
+            """ 加入新的元素覆盖最旧的元素 """
+            self.data[self.cur] = x
+            self.cur = (self.cur + 1) % self.max
+        def tolist(self):
+            """ 以正确的顺序返回元素列表 """
+            return self.data[self.cur:] + self.data[:self.cur]
+    def append(self, x):
+        """ 在缓存末尾增加一个元素 """
+        self.data.append(x)
+        if len(self.data) == self.max:
+            self.cur = 0
+            # 永久性地将self的类从非满改成满
+            self.__class__ = self.__Full
+    def tolist(self):
+        """ 返回一个从最旧的到最新的元素的列表 """
+        return self.data
+#用法示例
+x = RingBuffer(5)
+x.append(1); x.append(2); x.append(3); x.append(4); 
+print x.__class__, x.tolist()
+x.append(5)
+print x.__class__, x.tolist()
+x.append(6)
+print x.data, x.tolist()
+x.append(7); x.append(8); x.append(9); x.append(10); 
+print x.data, x.tolist()
 
+# 另一种选择是，我们可以切换实例的两个方法而非整个类，来使它变成填满的状态
+class RingBuffer(object):
+    def __init__(self, size_max):
+        self.max = size_max
+        self.data = []
+    def _full_append(self, x):
+        self.data[self.cur] = x
+        self.cur = (self.cur + 1) % self.max
+    def _full_get(self):
+        return self.data[self.cur:] + self.data[:self.cur]
+    def append(self, x):
+        self.data.append(x)
+        if len(self.data) == self.max:
+            self.cur = 0
+            self.append = self._full_append
+            self.tolist = self._full_get
+    def tolist(self):
+        return self.data
 
+'''
+6.12 检查一个实例的状态变化
+'''
+# 一个实例在上次“保存”操作之后又被修改了，需要检查它的状态变化以便有选择地保存此实例。
+# 一个有效的方案是mixin类，这个类可以从多个类继承并能对一个实例的状态进行快照操作，这样就可以用此实例的当前状态和上次的快照做比较，来判断它是否被修改过了
+import copy
+class ChangeCheckerMixin(object):
+    containerItems = {dict: dict.iteritems, list:enumerate}
+    immutable = False
+    def snapshot(self):
+        """
+        # 创建self状态的“快照”——就像浅拷贝，但只对容器的类型递归
+        # 而不是整个实例，在需要时实例会自行记录自己的状态变化
+        """
+        if self.immutable:
+            return 
+        self._snapshot = self._copy_container(self.__dict__)
+    def makeImmutable(self):
+        ''' 实例状态无法被修改，设置.immutable '''
+        self.immutable = True
+        try:
+            del self._snapshot
+        except AttributeError:
+            pass
+    def _copy_container(self, container):
+        ''' 半浅拷贝，只对容器类型递归 ''' 
+        new_container = copy.copy(container)
+        for k, v in self.containerItems[type(new_container)](new_container):
+            if type(v) in self.containerItems:
+                new_container[k] = self._copy_container(v)
+            elif hasattr(v, 'snapshot'):
+                v.snapshot()
+        return new_container
+    def isChanged(self):
+        ''' 从上次快照之后如果有变化返回True '''
+        if self.immutable:
+            return False
+        # 从self.__dict__中删除快照，并置之于末尾
+        snap = self.__dict__.pop('_snapshot', None)
+        if snap is None:
+            return True
+        try:
+            return self._checkContainer(self.__dict__, snap)
+        finally:
+            self._snapshot = snap
+    def _checkContainer(self, container, snapshot):
+        ''' 如果容器和快照不同，返回True '''
+        if len(container) != len(snapshot):
+            return True
+        for k, v in self.containerItems[type(container)](container):
+            try:
+                ov = snapshot[k]
+            except LookupError:
+                return True
+            if self._checkItem(v, ov):
+                return True
+        return False
+    def _checkItem(self, newitem, olditem):
+        ''' 
+        # 比较新旧元素，如果他们是容器类型，递归调用
+        # self._checkContainer recursivly.如果他们是带有“isChanged”
+        # 方法的实例，则委托给该方法，如果两者不相同，则返回True
+        '''
+        if type(newitem) != type(olditem):
+            return True
+        if type(newitem) in self.containerItems:
+            return self._checkContainer(newitem, olditem)
+        if newitem is olditem:
+            method_isChanged = getattr(newitem, 'isChanged', None)
+            if method_isChanged is None:
+                return False
+            return method_isChanged()
+        return newitem != olditem
 
-
-
-
-
-
-
-
-
-
-
-
-
+'''
+6.13 检查一个对象是否包含某种必要的属性
+'''
+# 你想在进行状态修改操作之前检查一个对象是否有某种必要的属性，但你想避免使用类型检查的方式，因为那样会打破多态机制的灵活性
