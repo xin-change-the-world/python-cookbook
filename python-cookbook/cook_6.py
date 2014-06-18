@@ -613,3 +613,206 @@ class ChangeCheckerMixin(object):
 6.13 检查一个对象是否包含某种必要的属性
 '''
 # 你想在进行状态修改操作之前检查一个对象是否有某种必要的属性，但你想避免使用类型检查的方式，因为那样会打破多态机制的灵活性
+def munge4(alist):
+    # 首先得到所有需要的被绑定方法（迅速获取异常而且不会造成部分修改现象，如果需要的方法不存在的话）
+    append = alist.append
+    extend = alist.extend
+    # 检查索引之类的操作以便尽快地获得异常
+    # 如果不满足签名兼容性的话
+    try: alist[0] = alist[0]
+    except IndexError: pass  # 空的alist也没问题
+    # 开始操作：这之后不会再有异常发生了
+    append(23)
+    extend(range(5))
+    alist[4] = alist[3]
+    extend(range(2))
+
+'''
+6.14 实现状态设计模式
+'''
+# 你希望你程序中的某个对象能在不同的“状态”之间切换，而且该对象的行为方式也能随着状态的变化而变化
+# 状态设计模式的关键思路是将“状态”（带有它自身的行为方式）对象化，使其成为一个类实例（带有一些方法）
+# 在Python中，你不用创建一个抽象类来表现这些不同状态共同的接口：只需为这些“状态”本身编写不同的类即可。
+class TraceNormal(object):
+    """ 正常的状态 """
+    def startMessage(self):
+        self.nstr = self.characters = 0
+    def emitString(self, s):
+        self.nstr += 1
+    def endMessage(self):
+        print '%d characters in %d strings' % (self.characters, self.nstr)
+class TraceChatty(object):
+    """ 详细的状态 """
+    def startMessage(self):
+        self.msg = []
+    def emitString(self, s):
+        self.msg.append(repr(s))
+    def endMessage(self):
+        print 'Message: ', ', '.join(self.msg)
+class TraceQuiet(object):
+    """ 输出的状态 """
+    def startMessage(self): pass
+    def emitString(self, s): pass
+    def endMessage(self): pass
+class Tracer(object):
+    def __init__(self, state): self.state = state
+    def setState(self, state): self.state = state
+    def emitStrings(self, strings):
+        self.state.startMessage()
+        for s in strings: self.state.emitStrings(s)
+        self.state.endMessage()
+t = Tracer(TraceNormal())
+t.emitStrings('some example strings here'.split())
+t.setState(TraceQuiet())
+t.emitStrings('some example strings here'.split())
+t.setState(TraceChatty())
+t.emitStrings('some example strings here'.split())
+
+'''
+6.15 实现单例模式
+'''
+# 你想保证某个类从始至终最多只能有一个实例
+# __new__静态方法使得这个任务极其简单
+class Singleton(object):
+    """ 一个Python风格的单例模式 """
+    def __new__(cls, *args, **kwargs):
+        if '_inst' not in vars(cls):
+            cls._inst = super(Singleton, cls).__new__(cls, *args, **kwargs)
+        return cls._inst
+# 然后只需从Singleton派生子类即可，而且不需要重载__new__
+# 然后所有对此类的调用（通常是创建新实例）都将返回一个实例
+class SingleSpam(Singleton):
+    def __init__(self, s): self.s = s
+    def __str__(self): return self.s
+s1 = SingleSpam('spam')
+print id(s1), s1.spam()
+s2 = SingleSpam('eggs')
+print id(s2), s2.spam()
+
+'''
+6.16 用Borg管用来避免“单例”模式
+'''
+# 你想保证某个类从始至终最多只能有一个实例：你并不关心生成的实例的id，只关心其状态和行为方式，而且你还想确保它具有子类话能力
+# 允许多个实例被创建，但所有实例都共享状态和行为方式。
+class Borg(object):
+    _shared_state = {}
+    def __new__(cls, *a, **k):
+        obj = object.__new__(cls, *a, **k)
+        obj.__dict__ = cls._shared_state
+        return obj
+class Example(Borg):
+    name = None 
+    def __init__(self, name=None):
+        if name is not None: self.name = name
+    def __str__(self): return 'name->%s' % self.name
+a = Example('Lara')
+b = Example()
+print a, b
+c = Example('John Malkovich')
+print a, b, c
+b.name = "Seven"
+print a, b, c
+
+'''
+6.17 Null对象设计模式的实现
+'''
+# 你想减少代码中条件声明，尤其是针对特殊情况的检查
+# 一种常见的代表“这里什么也没有”的占位符是None，但我们还可以定义一个类，其行为方式和这种占位符相似，而且效果更好
+class Null(object):
+    """ Null对象总是很可靠地什么也不做 """
+    # 可选的优化：确保每个子类只有一个实例
+    # 完全是为了节省内存，功能上没有任何差异
+    def __new__(cls, *args, **kwargs):
+        if '_inst' not in vars(cls):
+            cls._inst = type.__new__(cls, *args, **kwargs)
+        return cls._inst
+    def __init__(self, *args, **kwargs): pass
+    def __call__(self, *args, **kwargs): return self
+    def __repr__(self): return "Null()"
+    def __nonzero__(self): return False
+    def __getattr__(self, name): return self
+    def __setattr__(self, name, value): return self
+    def __delattr__(self, name): return self
+
+# 示例
+log = err = Null()
+if verbose:
+    log = open('/tmp/log','w')
+    err = open('/tmp/err','w')
+log.write('blabla')
+err.write('blabla err')
+
+'''
+6.18 用__init__参数自动初始化实例变量
+'''
+# 你想避免编写和维护一种烦人的几乎什么也不做的__init__方法，这种方法中含有一大堆形如self.something=something的赋值语句
+# 可以把那些属性赋值任务抽取出来置入一个辅助函数中：
+def attributesFromDict(d):
+    self = d.pop('self')
+    for n, v in d.iteritems():
+        setattr(self, n, v)
+# 而__init__方法里的那种千篇一律的赋值语句大概是这个样子的：
+'''
+def __init__(self, foo, bar, baz, boom=1, bang=2):
+    self.foo = foo
+    self.bar = bar
+    self.baz = baz
+    self.boom = boom
+    self.bang = bang
+# 现在可以i被缩减为清晰的一行
+def __init__(self, foo, bar, baz, boom=1, bang=2):
+    attributesFromDict(locals())
+# 一个相似但更简单的技术是，不适用辅助函数，而是像下面这样：
+def __init__(self, foo, bar, baz, boom=1, bang=2):
+    self.__dict__.update(locals())
+    del self.self
+# 不过这种技术对于一些特性和高级描述符，它无法正常工作，setattr在这方面表现得很完美
+'''
+
+'''
+6.19 调用超类的__init__方法
+'''
+# 你想确保所有的超类的__init__方法被自动调用（如果该超类定义过__init__方法），但Python并不会自动调用此方法
+# 如果你的类是新风格类，内建的super会使这个任务变得极其简单（如果所有的超类的__init__方法也用相似的方式使用super）
+class NewStyleOnly(A, B, C):
+    def __init__(self):
+        super(NewStyleOnly, self).__init__()
+# 如果你确实无法完成准备工作，那么你能做的就是循环检查基类——对于每个基类，都看它是否拥有__init__。如果有的话，调用该方法：
+class LookBeforeYouLeap(X, Y, Z):
+    def __init__(self):
+        for base in self.__class__.__bases__:
+            if hasattr(base, '__init__'):
+                base.__init__(self)
+
+'''
+6.20 精确和安全滴使用协作的超类调用
+'''
+# 你很欣赏通过内建的super来支持的多继承的代码的协作方式，但同时你也希望能够更加简洁和精确地使用这种方式
+# 一个好的方案是使用支持多继承的mixin类，此类使用了内省机制，且更加简洁：
+import inspect
+class SuperMixin(object):
+    def super(cls, *args, **kwargs):
+        frame = inspect.currentframe(1)
+        self = frame.f_locals['self']
+        methodName = frame.f_code.co_name
+        method = getattr(super(cls, self), methodName, None)
+        if inspect.ismethod(method):
+            return method(*args, **kwargs)
+    super = classmethod(super)
+
+class TestBase(list, SuperMixin):
+    # 注意：myMethod并未在此定义
+    pass
+class MyTest1(TestBase):
+    def myMethod(self):
+        print "in MyTest1"
+        MyTest1.super()
+class MyTest2(TestBase):
+    def myMethod(self):
+        print "in MyTest2"
+        MyTest2.super()
+class MyTest(MyTest1, MyTest2):
+    def myMethod(self):
+        print "in MyTest"
+        MyTest.super()
+MyTest().myMethod()
