@@ -4,7 +4,7 @@
 #
 #
 # python cookbook 第二章 文件
-# Writer：张广欣
+# Writer：xin.change.the.world@gmail.com
 # Date：2014-06-04
 #
 #
