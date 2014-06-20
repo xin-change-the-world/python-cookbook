@@ -316,3 +316,157 @@ udpServer.setServiceParent(application)
 # 在Twisted运行时所有服务自动开始
 log.msg('Asynchronous heartbeat server listening on port %d\n'
 	'press Ctrl-c to stop\n' % UDP_PORT)
+
+'''
+13.12 用HTTP监视网络
+'''
+# 你想实现某种特殊的HTTP服务，以便于监视你的网络
+# Python标准库模块BaseHTTPServer使得这个特殊的HTTP服务的实现变得很容易
+# 下面给出一个HTTP服务程序例子，它可以在服务主机上运行本地命令来获得数据并回应每个GET请求
+import BaseHTTPServer, shutil, os
+from cStringIO import StringIO
+class MyHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+    # 我们服务的HTTP路径以及我们服务的命令行命令
+    cmds = {'/ping': 'ping www.baidu.com',
+            '/netstat': 'netstat -a',
+            '/tracert': 'tracert www.baidu.com',
+            '/srvstats': 'net statistics server',
+            '/wsstats': 'net statistics workstation',
+            '/route': 'route print',
+            }
+    def do_GET(self):
+        """ 服务一个GET 请求 """
+        f = self.send_head()
+        if f:
+            f = StringIO()
+            machine = os.popen('hostname').readlines()[0]
+            if self.path == '/':
+                heading = "Select a command to run on %s" % (machine)
+                body = (self.getMenu() + 
+                        "<p>The screen won't update until the selected"
+                        "command has finished. Please be patient.")
+            else:
+                heading = "Execution of ''%s'' on %s" % (self.cmds[self.path], machine)
+                cmd = self.cmds[self.path]
+                body = '<a href="/">Main Menu&lt;/a&gt;<pre>%s</pre>\n' % os.popen(cmd).read()
+                # 翻译CP437 -> Latin 1，对于瑞典语的Windows是需要的
+                body = body.decode('cp437').encode('latin1')
+            f.write("<html><head><title>%s</title></head>\n" % heading)
+            f.write('<body><H1>%s</H1>\n' % (heading))
+            f.write(body)
+            f.write('</body></html>\n')
+            f.seek(0)
+            self.copyfile(f, self.wfile)
+            f.close()
+        return f
+
+    def do_HEAD(self):
+        """" 服务一个HEAD请求 """
+        f = self.send_head()
+        if f:
+            f.close()
+    def send_head(self):
+        path = self.path
+        if not path in ['/'] + self.cmds.keys():
+            head = 'Command "%s" not found. Try one of these:<ul>' % path
+            msg = head + self.getMenu()
+            self.send_error(404, msg)
+            return None
+        self.send_response(200)
+        self.send_header("Content-Type", 'text/html')
+        self.end_headers()
+        f = StringIO()
+        f.write("A test %s\n" % self.path)
+        f.seek(0)
+        return f
+    def getMenu(self):
+        keys = self.cmds.keys()
+        keys.sort()
+        msg = []
+        for k in keys:
+            msg.append('<li><a href="%s">%s => %s&lt;/a&gt;</li>' % (k, k, self.cmds[k]))
+        msg.append('</ul>')
+        return "\n".join(msg)
+    def copyfile(self, source, outputfile):
+        shutil.copyfileobj(source, outputfile)
+
+def main(HandlerClass = MyHTTPRequestHandler, ServerClass = BaseHTTPServer.HTTPServer):
+    BaseHTTPServer.test(HandlerClass, ServerClass)
+main()
+
+'''
+13.13 网络端口的转发和重定向
+'''
+# 需要将某个网络端口转发到另一个主机，但可能会是不同的端口
+# 使用threading和socket模块的类就能完成我们需要的端口转发和重定向
+import sys, socket, time, threading
+LOGGING = True
+loglock = threading.Lock()
+def log(s, *a):
+    if LOGGING:
+        loglock.acquire()
+        try:
+            print '%s:%s' % (time.ctime(), (s % a))
+            sys.stdout.flush()
+        finally:
+            loglock.release()
+class PipeThread(threading.Thread):
+    pipes = []
+    pipeslock = threading.Lock()
+    def __init__(self, source, sink):
+        Thread.__init__(self)
+        self.source = source
+        self.sink = sink
+        log('Creating new pipe thread %s ( %s -> %s )',
+            self, source.getpeername(), sink.getpeername())
+        self.pipeslock.acquire()
+        try: self.pipes.append(self)
+        finally: self.pipeslock.release()
+        log('%s pipes now active', pipes_now)
+    def run(self):
+        while True:
+            try:
+                data = self.source.recv(1024)
+                if not data: break
+                self.sink.send(data)
+            except:
+                break
+        log('%s terminating', self)
+        self.pipeslock.acquire()
+        try: pipes_left = len(self.pipes)
+        finally: self.pipeslock.release()
+        log('%s pipes still active', pipes_left)
+class Pinhole(threading.Thread):
+    def __init__(self, port, newhost, newport):
+        Thread.__init__(self)
+        log('Redirecting:localhost:%s->%s:%s', port, newhost, newport)
+        self.newhost = newhost
+        self.newport = newport
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.bind(('', port))
+        self.sock.listen(5)
+    def run(self):
+        while True:
+            newsock, address = self.sock.accept()
+            log('Creating new session for %s:%s', *address)
+            fwd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            fwd.connect((self.newhost, self.newport))
+            PipeThread(newsock, fwd).start()
+            PipeThread(fwd, newsock).start()
+'''
+if __name__=='__main__':
+    print 'Starting Pinhole port forwarder/redirector'
+    import sys
+    # 获得参数，如果出错给出帮助
+    try:
+        port = int(sys.argv[1])
+        newhost = sys.argv[2]
+        try: newport = int(sys.argv[3])
+        except IndexError: newport = port
+    except (ValueError, IndexError):
+        print 'Usage: %s port newhost [newport] ' % sys.argv[0]
+        sys.exit(1)
+    # 开始操作
+    sys.stdout = open('pinhole.log', 'w')
+    Pinhole(port, newhost, newport).start()
+'''
