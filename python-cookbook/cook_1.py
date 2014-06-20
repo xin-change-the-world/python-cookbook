@@ -7,7 +7,7 @@
 # Writer：xin.change.the.world@gmail.com
 # Date：2014-06-04
 #
-#
+# 
 '''
 '''
 1.1　每次处理一个字符 6
