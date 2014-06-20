@@ -6,7 +6,7 @@
 # python cookbook 第二章 文件
 # Writer：xin.change.the.world@gmail.com
 # Date：2014-06-04
-# 
+# github: https://github.com/xin-change-the-world/python-cookbook
 #
 '''
 '''

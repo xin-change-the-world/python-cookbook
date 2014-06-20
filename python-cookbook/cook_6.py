@@ -6,7 +6,7 @@
 # python cookbook 第六章 面向对象编程
 # Writer：xin.change.the.world@gmail.com
 # Date：2014-06-12
-#
+# github: https://github.com/xin-change-the-world/python-cookbook
 #
 '''
 """

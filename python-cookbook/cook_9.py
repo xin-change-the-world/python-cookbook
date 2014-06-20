@@ -6,7 +6,7 @@
 # python cookbook 第九章 进程、线程和同步
 # Writer：xin.change.the.world@gmail.com
 # Date：2014-06-12
-#
+# github: https://github.com/xin-change-the-world/python-cookbook
 #
 '''
 """

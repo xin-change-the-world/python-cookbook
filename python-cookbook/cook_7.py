@@ -6,7 +6,7 @@
 # python cookbook 第七章 持久化和数据库 
 # Writer：xin.change.the.world@gmail.com
 # Date：2014-06-18
-#
+# github: https://github.com/xin-change-the-world/python-cookbook
 #
 '''
 """

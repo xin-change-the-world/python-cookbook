@@ -6,7 +6,7 @@
 # python cookbook 第五章 搜索和排序
 # Writer：xin.change.the.world@gmail.com
 # Date：2014-06-11
-#
+# github: https://github.com/xin-change-the-world/python-cookbook
 #
 '''
 """

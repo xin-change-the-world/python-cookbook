@@ -6,7 +6,7 @@
 # python cookbook 第八章 调试和测试
 # Writer：xin.change.the.world@gmail.com
 # Date：2014-06-18
-#
+# github: https://github.com/xin-change-the-world/python-cookbook
 #
 '''
 """

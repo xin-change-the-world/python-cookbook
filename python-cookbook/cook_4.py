@@ -6,7 +6,7 @@
 # python cookbook 第四章 Python技巧
 # Writer：xin.change.the.world@gmail.com
 # Date：2014-06-10
-#
+# github: https://github.com/xin-change-the-world/python-cookbook
 #
 '''
 """
