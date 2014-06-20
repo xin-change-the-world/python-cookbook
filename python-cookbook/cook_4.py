@@ -4,7 +4,7 @@
 #
 #
 # python cookbook 第四章 Python技巧
-# Writer：张广欣
+# Writer：xin.change.the.world@gmail.com
 # Date：2014-06-10
 #
 #
