@@ -4,7 +4,7 @@
 #
 #
 # python cookbook 第五章 搜索和排序
-# Writer：张广欣
+# Writer：xin.change.the.world@gmail.com
 # Date：2014-06-11
 #
 #
