@@ -2,14 +2,13 @@
 # -*- coding: utf-8 -*-
 '''
 #
-#
 # python cookbook 第四章 Python技巧
 # Writer：xin.change.the.world@gmail.com
 # Date：2014-06-10
 # github: https://github.com/xin-change-the-world/python-cookbook
 #
 '''
-"""
+'''
 4.1　对象拷贝 140
 4.2　通过列表推导构建列表 144
 4.3　若列表中某元素存在则返回之 146
@@ -33,7 +32,7 @@
 4.21　以指定的概率获取元素 174
 4.22　在表达式中处理异常 176
 4.23　确保名字已经在给定模块中被定义 178
-"""
+'''
 '''
 4.1 对象拷贝
 '''
