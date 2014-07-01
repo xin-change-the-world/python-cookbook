@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 '''
 #
-#
 # python cookbook 第十八章 算法 616
 # Writer：xin.change.the.world@gmail.com
 # Date：2014-06-24
@@ -232,3 +231,27 @@ class FifoCache(object, UserDict.DictMixin):
 	def __contains__(self, item):
 		return item in self.dct
 	has_key = __contains__
+
+'''
+18.10 计算素数
+'''
+# 你想计算所有素数的一个无界的序列，或小于某个阀值的所有素数的列表
+import itertools
+def eratosthenes():
+	''' Eratosthenes 筛选法生成素数序列 '''
+	D = {} # 将每个合数映射到它的第一个素数因子
+	for q in itertools.count(2):
+		p = D.pop(q, None)
+		if p is None:
+			# q不是D的键，因此q是素数
+			yield q
+			# 将q平方标记为非素数（q作为第一个素数因子）
+			D[q*q] = q
+		else:
+			# 对于x<-smallest （N*p） + q 我们不知道是否是合数
+			# 因为p是q的第一个素数因子，所以x一定是合数
+			# 寻找并标记之
+			x = p + q
+			while x in D:
+				x += p
+			D[x] = p
