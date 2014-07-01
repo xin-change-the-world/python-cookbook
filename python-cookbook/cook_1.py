@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 '''
 #
-# 
 # python cookbook 第一章 文本
 # Writer：xin.change.the.world@gmail.com
 # Date：2014-06-04
