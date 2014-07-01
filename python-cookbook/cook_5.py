@@ -2,14 +2,13 @@
 # -*- coding: utf-8 -*-
 '''
 #
-#
 # python cookbook 第五章 搜索和排序
 # Writer：xin.change.the.world@gmail.com
 # Date：2014-06-11
 # github: https://github.com/xin-change-the-world/python-cookbook
 #
 '''
-"""
+'''
 5.1　对字典排序 185
 5.2　不区分大小写对字符串列表排序 185
 5.3　根据对象的属性将对象列表排序 187
@@ -25,7 +24,7 @@
 5.13　寻找子序列 208
 5.14　给字典类型增加排名功能 210
 5.15　根据姓的首字母将人名排序和分组 214
-"""
+'''
 #Python2.3中的提姆排序（timsort）是稳定的，健壮的，而且在实际应用中也快的像飞一样
 '''
 5.1 对字典排序
