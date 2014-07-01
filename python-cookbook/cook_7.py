@@ -2,14 +2,13 @@
 # -*- coding: utf-8 -*-
 '''
 #
-#
 # python cookbook 第七章 持久化和数据库 
 # Writer：xin.change.the.world@gmail.com
 # Date：2014-06-18
 # github: https://github.com/xin-change-the-world/python-cookbook
 #
 '''
-"""
+'''
 7.1　使用marshal模块序列化数据 275
 7.2　使用pickle和cPickle模块序列化数据 277
 7.3　在Pickling的时候压缩 280
@@ -29,7 +28,7 @@
 7.17　通过ADO使用Microsoft Jet 308
 7.18　从Jython Servlet访问JDBC数据库 310
 7.19　通过Jython和ODBC获得Excel数据 313
-"""
+'''
 '''
 7.1 使用marshal模块序列化数据 275
 '''
