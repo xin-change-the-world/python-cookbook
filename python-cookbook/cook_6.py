@@ -2,14 +2,13 @@
 # -*- coding: utf-8 -*-
 '''
 #
-#
 # python cookbook 第六章 面向对象编程
 # Writer：xin.change.the.world@gmail.com
 # Date：2014-06-12
 # github: https://github.com/xin-change-the-world/python-cookbook
 #
 '''
-"""
+'''
 6.1　温标的转换 223
 6.2　定义常量 225
 6.3　限制属性的设置 227
@@ -30,7 +29,7 @@
 6.18　用_ _init_ _参数自动初始化实例变量 266
 6.19　调用超类的_ _init_ _方法 267
 6.20　精确和安全地使用协作的超类调用 270
-"""
+'''
 '''
 #在python中最好的方式是使用模块，而不是一个OOP对象
 '''
