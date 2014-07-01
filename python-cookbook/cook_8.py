@@ -2,14 +2,13 @@
 # -*- coding: utf-8 -*-
 '''
 #
-#
 # python cookbook 第八章 调试和测试
 # Writer：xin.change.the.world@gmail.com
 # Date：2014-06-18
 # github: https://github.com/xin-change-the-world/python-cookbook
 #
 '''
-"""
+'''
 8.1　阻止某些条件和循环的执行 316
 8.2　在Linux上测量内存使用 317
 8.3　调试垃圾回收进程 318
@@ -21,7 +20,7 @@
 8.9　自动运行单元测试 330
 8.10　在Python 2.4中使用doctest和unittest 331
 8.11　在单元测试中检查区间 334
-"""
+'''
 '''
 8.1 阻止某些条件和循环的执行
 '''
