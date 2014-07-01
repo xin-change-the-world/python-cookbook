@@ -2,14 +2,13 @@
 # -*- coding: utf-8 -*-
 '''
 #
-#
 # python cookbook 第九章 进程、线程和同步
 # Writer：xin.change.the.world@gmail.com
 # Date：2014-06-12
 # github: https://github.com/xin-change-the-world/python-cookbook
 #
 '''
-"""
+'''
 9.1　同步对象中的所有方法 339
 9.2　终止线程 342
 9.3　将Queue.Queue用作优先级队列 344
@@ -23,7 +22,7 @@
 9.11　用popen驱动外部进程 363
 9.12　获取UNIX Shell命令的输出流和错误流 364
 9.13　在UNIX中fork一个守护进程 367
-"""
+'''
 '''
 在Python中通过增加线程来提速往往不是一个好的策略。原因就在于全局解释器锁（Global Interpreter Lock, GIL）
 它被用来保护Python的内部数据结构。在一个线程能够安全的访问Python对象之前，它必须持有这个所。如果没有这个锁，
