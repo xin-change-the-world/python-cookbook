@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 '''
 #
-#
 # python cookbook 第十三章 网络编程
 # Writer：xin.change.the.world@gmail.com
 # Date：2014-06-19
